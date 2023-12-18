@@ -1,15 +1,27 @@
 import { Button } from "@/components/ui/button"
 import { zodResolver } from "@hookform/resolvers/zod"
 import {useForm} from "react-hook-form";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,} from "@/components/ui/form"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage,} from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import {SignupValidation} from "@/lib/validation";
 import {z} from "zod";
+import Loader from "@/components/shared/Loader.tsx";
+import { Link, useNavigate } from "react-router-dom";
+import { useToast } from "@/components/ui/use-toast"
+import {useCreateUserAccount} from "@/lib/react-query/queriesAndMutations.ts";
+import {useSingInAccount} from "@/lib/react-query/queriesAndMutations.ts";
+import {useUserContext} from "@/context/AuthContext.tsx";
 
 
 
 const SignUpForm = () => {
-    const isLoading = true;
+    const { toast } = useToast();
+    const { checkAuthUser, isLoading: isUserLoading} = useUserContext();
+    const navigate = useNavigate();
+
+    const { mutateAsync: createUserAccount, isPending: isCreatingAccount } = useCreateUserAccount();
+
+    const {mutateAsync: signInAccount, isPending: isSigningIn} = useSingInAccount();
 
     const form = useForm<z.infer<typeof SignupValidation>>({
         resolver: zodResolver(SignupValidation),
@@ -22,10 +34,37 @@ const SignUpForm = () => {
     })
 
     // 2. Define a submit handler.
-    function onSubmit(values: z.infer<typeof SignupValidation>) {
-        // Do something with the form values.
-        // ✅ This will be type-safe and validated.
-        console.log(values)
+    async function onSubmit(values: z.infer<typeof SignupValidation>) {
+        const newUser = await createUserAccount(values);
+
+        if(!newUser){
+            return toast({
+                title: "Sign Up failed. Please try again!",
+            })
+        }
+
+        const session = await signInAccount({
+            email: values.email,
+            password: values.password,
+        });
+
+        if(!session){
+            return toast({
+                title: 'Sign in failed! Please try again!'
+            })
+        }
+
+        const isLoggedIn = await checkAuthUser();
+
+        if(isLoggedIn){
+            form.reset();
+
+            navigate('/');
+        } else{
+            return toast({
+                title: 'Sign up failed please try again!'
+            })
+        }
     }
 
     return (
@@ -51,9 +90,6 @@ const SignUpForm = () => {
                                     <FormControl>
                                         <Input type={"text"} className={"shad-input"} {...field} />
                                     </FormControl>
-                                    <FormDescription>
-                                        This is your public display name.
-                                    </FormDescription>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -102,12 +138,21 @@ const SignUpForm = () => {
                         />
 
                         <Button type="submit" className="shad-button_primary">
-                            {isLoading ? (
+                            {isCreatingAccount ? (
                                 <div className={"flex-center gap-2"}>
-                                    Loading...
+                                    <Loader /> Loading...
                                 </div>
                             ): "Sign up"}
                         </Button>
+
+                        <p className="text-small-regular text-light-2 text-center mt-2">
+                            Already have an account?
+                            <Link
+                                to="/sign-in"
+                                className="text-primary-500 text-small-semibold ml-1">
+                                Log in
+                            </Link>
+                        </p>
                     </form>
                 </div>
             </Form>
