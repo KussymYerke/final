@@ -9,7 +9,7 @@ import Loader from "@/components/shared/Loader.tsx";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast"
 import {useCreateUserAccount} from "@/lib/react-query/queriesAndMutations.ts";
-import {useSingInAccount} from "@/lib/react-query/queriesAndMutations.ts";
+import {useSignInAccount} from "@/lib/react-query/queriesAndMutations.ts";
 import {useUserContext} from "@/context/AuthContext.tsx";
 
 
@@ -21,7 +21,7 @@ const SignUpForm = () => {
 
     const { mutateAsync: createUserAccount, isPending: isCreatingAccount } = useCreateUserAccount();
 
-    const {mutateAsync: signInAccount, isPending: isSigningIn} = useSingInAccount();
+    const {mutateAsync: signInAccount, isPending: isSigningIn} = useSignInAccount();
 
     const form = useForm<z.infer<typeof SignupValidation>>({
         resolver: zodResolver(SignupValidation),
