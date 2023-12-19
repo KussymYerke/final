@@ -1,6 +1,6 @@
 import { ID, Query } from 'appwrite';
 import {INewUser} from "@/types";
-import {account, avatars, databases} from "@/lib/appwrite/config.ts";
+import {account, avatars, databases, storage} from "@/lib/appwrite/config.ts";
 
 export async function createUserAccount(user: INewUser){
     try{
@@ -87,6 +87,165 @@ export async function signOutAccount() {
         const session = await account.deleteSession("current");
 
         return session;
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+export async function createPost(post: INewPost) {
+    try {
+        // Upload file to appwrite storage
+        const uploadedFile = await uploadFile(post.file[0]);
+
+        if (!uploadedFile) throw Error;
+
+        // Get file url
+        const fileUrl = getFilePreview(uploadedFile.$id);
+        if (!fileUrl) {
+            await deleteFile(uploadedFile.$id);
+            throw Error;
+        }
+
+        // Convert tags into array
+        const tags = post.tags?.replace(/ /g, "").split(",") || [];
+
+        // Create post
+        const newPost = await databases.createDocument(
+            "6580b110a12e18e122a8",
+            "6580b12966559da63376",
+            ID.unique(),
+            {
+                creator: post.userId,
+                caption: post.caption,
+                imageUrl: fileUrl,
+                imageId: uploadedFile.$id,
+                location: post.location,
+                tags: tags,
+            }
+        );
+
+        if (!newPost) {
+            await deleteFile(uploadedFile.$id);
+            throw Error;
+        }
+
+        return newPost;
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+export async function uploadFile(file: File) {
+    try {
+        const uploadedFile = await storage.createFile(
+            "6580b0f2a6a7f624a0fd",
+            ID.unique(),
+            file
+        );
+
+        return uploadedFile;
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+// ============================== GET FILE URL
+export function getFilePreview(fileId: string) {
+    try {
+        const fileUrl = storage.getFilePreview(
+            "6580b0f2a6a7f624a0fd",
+            fileId,
+            2000,
+            2000,
+            "top",
+            100
+        );
+
+        if (!fileUrl) throw Error;
+
+        return fileUrl;
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+export async function deleteFile(fileId: string) {
+    try {
+        await storage.deleteFile("6580b0f2a6a7f624a0fd", fileId);
+
+        return { status: "ok" };
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+export async function getRecentPosts() {
+    try {
+        const posts = await databases.listDocuments(
+            "6580b110a12e18e122a8",
+            "6580b12966559da63376",
+            [Query.orderDesc("$createdAt"), Query.limit(20)]
+        );
+
+        if (!posts) throw Error;
+
+        return posts;
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+
+export async function likePost(postId: string, likesArray: string[]) {
+    try {
+        const updatedPost = await databases.updateDocument(
+            "6580b110a12e18e122a8",
+            "6580b12966559da63376",
+            postId,
+            {
+                likes: likesArray,
+            }
+        );
+
+        if (!updatedPost) throw Error;
+
+        return updatedPost;
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+export async function savePost(userId: string, postId: string) {
+    try {
+        const updatedPost = await databases.createDocument(
+            "6580b110a12e18e122a8",
+            "6580b15eb4aa93b0a869",
+            ID.unique(),
+            {
+                user: userId,
+                post: postId,
+            }
+        );
+
+        if (!updatedPost) throw Error;
+
+        return updatedPost;
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+export async function deleteSavedPost(savedRecordId: string) {
+    try {
+        const statusCode = await databases.deleteDocument(
+            "6580b110a12e18e122a8",
+            "6580b15eb4aa93b0a869",
+            savedRecordId
+        );
+
+        if (!statusCode) throw Error;
+
+        return { status: "Ok" };
     } catch (error) {
         console.log(error);
     }
